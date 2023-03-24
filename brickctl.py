@@ -4,6 +4,7 @@ import subprocess
 import openai
 from kubernetes import config, client
 import os
+from termcolor import colored
 
 openai.api_key = os.environ.get("OPENAI_API_KEY")
 
@@ -26,7 +27,26 @@ def get_namespaces():
     for ns in namespaces:
         print(f"- {ns.metadata.name}")
 
-def get_deployments(namespace):
+    # AI insights
+    print("\nAI Insights:")
+    ai_prompt = f"Provide insights for Kubernetes pods in namespace {namespace}:"
+    ai_response = generate_ai_response(ai_prompt)
+    print(ai_response)
+
+def get_deployments(namespace, deployment_name=None):
+    deployments = apps_v1.list_namespaced_deployment(namespace).items
+    if deployment_name is not None:
+        deployments = [deploy for deploy in deployments if deploy.metadata.name == deployment_name]
+
+    deployments = apps_v1.list_namespaced_deployment(namespace).items
+    deployment_info = []
+    for deploy in deployments:
+        deployment_info.append({
+            "name": deploy.metadata.name,
+            "replicas": deploy.spec.replicas,
+            "available_replicas": deploy.status.available_replicas,
+        })
+
     deployments = apps_v1.list_namespaced_deployment(namespace).items
     print("Listing deployments:")
     for deploy in deployments:
@@ -34,11 +54,23 @@ def get_deployments(namespace):
 
     # AI insights
     print("\nAI Insights:")
-    ai_prompt = f"Provide insights for Kubernetes deployments in namespace {namespace}:"
+    # ai_prompt = f"Provide insights for Kubernetes deployments in namespace {namespace}:"
+    # ai_response = generate_ai_response(ai_prompt)
+    # print(ai_response)
+    ai_prompt = f"Provide insights for Kubernetes deployments in namespace {namespace} with the following details: {deployment_info}"
     ai_response = generate_ai_response(ai_prompt)
-    print(ai_response)
+    print(colored(ai_response, "cyan"))
+
 
 def get_pods(namespace):
+    deployments = apps_v1.list_namespaced_deployment(namespace).items
+    deployment_info = []
+    for deploy in deployments:
+        deployment_info.append({
+            "name": deploy.metadata.name,
+            "replicas": deploy.spec.replicas,
+            "available_replicas": deploy.status.available_replicas,
+        })
     pods = api_instance.list_namespaced_pod(namespace).items
     print("Listing pods:")
     for pod in pods:
@@ -46,9 +78,12 @@ def get_pods(namespace):
 
     # AI insights
     print("\nAI Insights:")
-    ai_prompt = f"Provide insights for Kubernetes pods in namespace {namespace}:"
+    # ai_prompt = f"Provide insights for Kubernetes namespaces in namespace {namespace}:"
+    # ai_response = generate_ai_response(ai_prompt)
+    # print(ai_response)
+    ai_prompt = f"Provide insights for Kubernetes deployments in namespace {namespace} with the following details: {deployment_info}"
     ai_response = generate_ai_response(ai_prompt)
-    print(ai_response)
+    print(colored(ai_response, "cyan"))
 
 def get_services(namespace):
     services = api_instance.list_namespaced_service(namespace).items
@@ -58,9 +93,12 @@ def get_services(namespace):
 
     # AI insights
     print("\nAI Insights:")
-    ai_prompt = f"Provide insights for Kubernetes services in namespace {namespace}:"
+    # ai_prompt = f"Provide insights for Kubernetes services in namespace {namespace}:"
+    # ai_response = generate_ai_response(ai_prompt)
+    # print(ai_response)
+    ai_prompt = f"Provide insights and general information about Kubernetes services in namespace {namespace}:"
     ai_response = generate_ai_response(ai_prompt)
-    print(ai_response)
+    print(colored(ai_response, "cyan"))
 
 def get_serviceaccounts(namespace):
     serviceaccounts = api_instance.list_namespaced_service_account(namespace).items
@@ -70,9 +108,12 @@ def get_serviceaccounts(namespace):
 
     # AI insights
     print("\nAI Insights:")
-    ai_prompt = f"Provide insights for Kubernetes service accounts in namespace {namespace}:"
+    # ai_prompt = f"Provide insights for Kubernetes service accounts in namespace {namespace}:"
+    # ai_response = generate_ai_response(ai_prompt)
+    # print(ai_response)
+    ai_prompt = f"Provide insights and general information about Kubernetes service accounts in namespace {namespace}:"
     ai_response = generate_ai_response(ai_prompt)
-    print(ai_response)
+    print(colored(ai_response, "cyan"))
 
 def get_statefulsets(namespace):
     statefulsets = apps_v1.list_namespaced_stateful_set(namespace).items
@@ -82,9 +123,12 @@ def get_statefulsets(namespace):
 
     # AI insights
     print("\nAI Insights:")
-    ai_prompt = f"Provide insights for Kubernetes stateful sets in namespace {namespace}:"
+    # ai_prompt = f"Provide insights for Kubernetes stateful sets in namespace {namespace}:"
+    # ai_response = generate_ai_response(ai_prompt)
+    # print(ai_response)
+    ai_prompt = f"Provide insights and general information about Kubernetes stateful sets in namespace {namespace}:"
     ai_response = generate_ai_response(ai_prompt)
-    print(ai_response)
+    print(colored(ai_response, "cyan"))
 
 config.load_kube_config()
 
@@ -263,6 +307,7 @@ subparsers = parser.add_subparsers(dest="command")
 get_parser = subparsers.add_parser("get", help="Get resources from the cluster")
 get_parser.add_argument("resource", help="Resource type to get (e.g., deployments, pods)")
 get_parser.add_argument("-n", "--namespace", help="Namespace of the resource")
+get_parser.add_argument("name", help="Name of the resource", nargs="?")
 
 create_parser = subparsers.add_parser("create", help="Create a resource from a file")
 create_parser.add_argument("file", help="Path to the resource file", nargs="?")
@@ -377,6 +422,12 @@ if args.command == "get":
     else:
         print(f"Unsupported resource type: {resource}", file=sys.stderr)
         sys.exit(1)
+elif args.command == "get":
+    namespace = args.namespace
+    resource = args.resource.lower()
+    name = args.name if hasattr(args, "name") else None
+    if resource == "deployments":
+        get_deployments(namespace, deployment_name=name)
 elif args.command == "create":
     create_resource(args.file)
 elif args.command == "delete":
