@@ -5,7 +5,9 @@ import openai
 from kubernetes import config, client
 import os
 from termcolor import colored
+from prettytable import PrettyTable
 
+# Import OpenAI API key
 openai.api_key = os.environ.get("OPENAI_API_KEY")
 
 def generate_ai_response(prompt):
@@ -62,6 +64,61 @@ def get_deployments(namespace, deployment_name=None):
     print(colored(ai_response, "cyan"))
 
 
+# def get_pods(namespace):
+#     deployments = apps_v1.list_namespaced_deployment(namespace).items
+#     deployment_info = []
+#     for deploy in deployments:
+#         deployment_info.append({
+#             "name": deploy.metadata.name,
+#             "replicas": deploy.spec.replicas,
+#             "available_replicas": deploy.status.available_replicas,
+#         })
+#     pods = api_instance.list_namespaced_pod(namespace).items
+#     print("Listing pods:")
+#     for pod in pods:
+#         print(f"- {pod.metadata.name}")
+
+#     # AI insights
+#     print("\nAI Insights:")
+#     ai_prompt = f"Provide insights for Kubernetes deployments in namespace {namespace} with the following details: {deployment_info}"
+#     ai_response = generate_ai_response(ai_prompt)
+#     print(colored(ai_response, "cyan"))
+
+
+# def get_pods(namespace):
+#     deployments = apps_v1.list_namespaced_deployment(namespace).items
+#     deployment_info = []
+#     for deploy in deployments:
+#         deployment_info.append({
+#             "name": deploy.metadata.name,
+#             "replicas": deploy.spec.replicas,
+#             "available_replicas": deploy.status.available_replicas,
+#         })
+#     pods = api_instance.list_namespaced_pod(namespace).items
+#     print("Listing pods:")
+#     for pod in pods:
+#         print(f"- {pod.metadata.name}")
+#         container_stats = {}
+#         try:
+#             container_stats = api_instance.read_namespaced_pod_status(pod.metadata.name, namespace).status.container_statuses[0].usage
+#         except:
+#             pass
+#         print("  Containers:")
+#         for container in pod.spec.containers:
+#             print(f"    - {container.name}:")
+#             cpu_usage = container_stats.get('cpu', '0')
+#             mem_usage = container_stats.get('memory', '0')
+#             disk_usage = container_stats.get('storage', '0')
+#             print(f"      CPU {cpu_usage}, Memory {mem_usage}, Disk {disk_usage}, Image {container.image}")
+#         print(f"  Total resource usage: CPU {cpu_usage}, Memory {mem_usage}, Disk {disk_usage}")
+#     print("\nAI Insights:")
+#     if deployment_info:
+#         ai_prompt = f"Provide insights for Kubernetes deployments in namespace {namespace} with the following details: {deployment_info}"
+#         ai_response = generate_ai_response(ai_prompt)
+#         print(colored(ai_response, "cyan"))
+#     else:
+#         print("No deployments found in this namespace.")
+
 def get_pods(namespace):
     deployments = apps_v1.list_namespaced_deployment(namespace).items
     deployment_info = []
@@ -75,16 +132,32 @@ def get_pods(namespace):
     print("Listing pods:")
     for pod in pods:
         print(f"- {pod.metadata.name}")
-
-    # AI insights
+        container_stats = {}
+        try:
+            container_stats = api_instance.read_namespaced_pod_status(pod.metadata.name, namespace).status.container_statuses[0].usage
+        except:
+            pass
+        print("  Containers:")
+        for container in pod.spec.containers:
+            print(f"    - {container.name}:")
+            cpu_usage = container_stats.get('cpu', '0')
+            mem_usage = container_stats.get('memory', '0')
+            disk_usage = container_stats.get('storage', '0')
+            print(f"      CPU {cpu_usage}, Memory {mem_usage}, Disk {disk_usage}, Image {container.image}")
+        print(f"  Total resource usage: CPU {cpu_usage}, Memory {mem_usage}, Disk {disk_usage}")
     print("\nAI Insights:")
-    # ai_prompt = f"Provide insights for Kubernetes namespaces in namespace {namespace}:"
-    # ai_response = generate_ai_response(ai_prompt)
-    # print(ai_response)
-    ai_prompt = f"Provide insights for Kubernetes deployments in namespace {namespace} with the following details: {deployment_info}"
-    ai_response = generate_ai_response(ai_prompt)
-    print(colored(ai_response, "cyan"))
-
+    if deployment_info:
+        x = PrettyTable()
+        x.field_names = ["Deployment Name", "Replicas", "Available Replicas"]
+        for deploy in deployment_info:
+            x.add_row([deploy["name"], deploy["replicas"], deploy["available_replicas"]])
+        print(x)
+        ai_prompt = f"Provide insights for Kubernetes deployments in namespace {namespace} with the following details: {deployment_info}"
+        ai_response = generate_ai_response(ai_prompt)
+        print(colored(ai_response, "cyan"))
+    else:
+        print("No deployments found in this namespace.")
+        
 def get_services(namespace):
     services = api_instance.list_namespaced_service(namespace).items
     print("Listing services:")
